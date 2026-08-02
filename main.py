@@ -4,8 +4,8 @@ import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # ================= НАСТРОЙКИ =================
-BOT_TOKEN = "8798963962:AAEfjHv-Rm4fpWcc9PNsS-DOU6N02HN0cQY"  # Вставь сюда токен, который дал BotFather
-CHANNEL_ID = "-1003964096231"             # Юзернейм твоего канала (например, @my_crypto_signals)
+BOT_TOKEN = "8798963962:AAEfjHv-Rm4fpWcc9PNsS-DOU6N02HN0cQY"  
+CHANNEL_ID = "-1003964096231"             
 THRESHOLD_PERCENT = 0.5                # Порог разницы в процентах
 CHECK_INTERVAL = 300                   # Пауза между проверками (300 секунд = 5 минут)
 # =============================================
@@ -13,7 +13,7 @@ CHECK_INTERVAL = 300                   # Пауза между проверка�
 bot = telebot.TeleBot(BOT_TOKEN)
 
 def get_bybit_opportunities():
-    """Получает данные с биржи и возвращает список найденных связок"""
+    """Получает данные с биржи и ищет связки, где Индексная цена > Маркировочной"""
     url = "https://api.bybit.com/v5/market/tickers"
     params = {"category": "linear"}
     opportunities = []
@@ -22,21 +22,26 @@ def get_bybit_opportunities():
         response = requests.get(url, params=params).json()
         if response.get("retCode") == 0:
             for ticker in response["result"]["list"]:
-                last_price = float(ticker["lastPrice"])
+                # Забираем маркировочную и индексную цены
+                mark_price = float(ticker["markPrice"])
                 index_price = float(ticker["indexPrice"])
                 
-                if index_price == 0:
+                # Защита от деления на ноль, если данные некорректны
+                if mark_price == 0:
                     continue
                 
-                diff_percent = abs(last_price - index_price) / index_price * 100
-                
-                if diff_percent > THRESHOLD_PERCENT:
-                    opportunities.append({
-                        "symbol": ticker["symbol"],
-                        "last": last_price,
-                        "index": index_price,
-                        "diff": diff_percent
-                    })
+                # Главное условие: Индексная цена должна быть строго больше маркировочной
+                if index_price > mark_price:
+                    # Вычисляем разницу в процентах относительно маркировочной цены
+                    diff_percent = ((index_price - mark_price) / mark_price) * 100
+                    
+                    if diff_percent > THRESHOLD_PERCENT:
+                        opportunities.append({
+                            "symbol": ticker["symbol"],
+                            "mark": mark_price,
+                            "index": index_price,
+                            "diff": diff_percent
+                        })
     except Exception as e:
         print(f"Ошибка при запросе к Bybit: {e}")
         
@@ -50,11 +55,11 @@ def send_channel_update():
     pairs = get_bybit_opportunities()
     
     if not pairs:
-        print(f"Связок с разницей > {THRESHOLD_PERCENT}% не найдено. Ждем дальше.")
+        print(f"Связок (Индекс > Маркировки) с разницей > {THRESHOLD_PERCENT}% не найдено. Ждем дальше.")
         return # Если ничего не нашли, сообщение не отправляем
 
     # Формируем заголовок сообщения
-    text = f"🚨 **Обнаружены сильные расхождения цен (> {THRESHOLD_PERCENT}%)** 🚨\n\n"
+    text = f"🚨 **Обнаружены расхождения (Индекс > Маркировки > {THRESHOLD_PERCENT}%)** 🚨\n\n"
     
     markup = InlineKeyboardMarkup()
     buttons = []
@@ -63,7 +68,7 @@ def send_channel_update():
     for p in pairs[:15]:
         symbol = p["symbol"]
         text += f"🔹 **{symbol}**\n"
-        text += f"Текущая: `{p['last']}`\n"
+        text += f"Маркировочная: `{p['mark']}`\n"
         text += f"Индексная: `{p['index']}`\n"
         text += f"Разница: 🔴 **{p['diff']:.2f}%**\n\n"
         
