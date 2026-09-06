@@ -7,7 +7,7 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 BOT_TOKEN = "8798963962:AAEfjHv-Rm4fpWcc9PNsS-DOU6N02HN0cQY"  # Обязательно перевыпусти токен в BotFather!
 CHANNEL_ID = "-1003964096231"             
 THRESHOLD_PERCENT = 0.5                # Порог разницы в процентах (Индекс > Маркировка)
-MIN_GROWTH_PERCENT = 0.3               # Минимальный рост монеты в % для отправки
+MIN_GROWTH_PERCENT = 10               # Минимальный рост монеты в % для отправки
 GROWTH_TIME_WINDOW = 3600              # Окно времени для расчета роста (в секундах, 3600 = 1 час)
 CHECK_INTERVAL = 300                   # Пауза между проверками (300 секунд = 5 минут)
 DAILY_INTERVAL = 86400                 # 24 часа в секундах (для суточного отчета)
